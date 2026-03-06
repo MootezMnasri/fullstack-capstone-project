@@ -72,4 +72,37 @@ router.post('/login', async (req, res) => {
     }
 });
 
+
+// POST /update - Update user credentials
+router.post('/update', async (req, res) => {
+    try {
+        const { email, firstName, lastName, password } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required.' });
+        }
+        const db = await connectToDatabase();
+        const usersCollection = db.collection('users');
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+        const updateFields = {};
+        if (firstName) updateFields.firstName = firstName;
+        if (lastName) updateFields.lastName = lastName;
+        if (password) {
+            updateFields.password = await bcrypt.hash(password, 10);
+        }
+        if (Object.keys(updateFields).length === 0) {
+            return res.status(400).json({ error: 'No fields to update.' });
+        }
+        await usersCollection.updateOne({ email }, { $set: updateFields });
+        const updatedUser = await usersCollection.findOne({ email });
+        const { password: _, ...userWithoutPassword } = updatedUser;
+        res.status(200).json({ message: 'User updated successfully.', user: userWithoutPassword });
+    } catch (error) {
+        console.error('Update error:', error);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
 module.exports = router;
