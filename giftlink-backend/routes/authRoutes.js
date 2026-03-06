@@ -2,7 +2,10 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
+
 const connectToDatabase = require('../models/db');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'setasecret';
 
 // POST /register - Register a new user
 router.post('/register', async (req, res) => {
@@ -31,7 +34,9 @@ router.post('/register', async (req, res) => {
         await usersCollection.insertOne(newUser);
         // Never return password
         const { password: _, ...userWithoutPassword } = newUser;
-        res.status(201).json({ message: 'User registered successfully.', user: userWithoutPassword });
+        // Generate JWT token
+        const authtoken = jwt.sign({ id: newUser.id, email: newUser.email, name: newUser.firstName }, JWT_SECRET, { expiresIn: '2h' });
+        res.status(201).json({ message: 'User registered successfully.', user: userWithoutPassword, authtoken });
     } catch (error) {
         console.error('Registration error:', error);
         res.status(500).json({ error: 'Internal server error.' });
