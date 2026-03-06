@@ -43,4 +43,33 @@ router.post('/register', async (req, res) => {
     }
 });
 
+
+// POST /login - Login a user
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required.' });
+        }
+        const db = await connectToDatabase();
+        const usersCollection = db.collection('users');
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid email or password.' });
+        }
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Invalid email or password.' });
+        }
+        // Generate JWT token
+        const authtoken = jwt.sign({ id: user.id, email: user.email, name: user.firstName }, JWT_SECRET, { expiresIn: '2h' });
+        // Never return password
+        const { password: _, ...userWithoutPassword } = user;
+        res.status(200).json({ message: 'Login successful.', user: userWithoutPassword, authtoken });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
 module.exports = router;
